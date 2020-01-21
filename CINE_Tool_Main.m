@@ -26,7 +26,8 @@ for iFile=1:length(Filelist)    % Loop through selected files
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Calculate trajectory and ramp weighting
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    if ~sum(strfind(Header{1,length(Header)}.hdr.Config.SequenceFileName(15:end),'ty'))
+    %     if ~contains(Header{1,length(Header)}.hdr.Config.SequenceFileName(15:end),'ty')
+    if ~sum(strfind(Header{1,length(Header)}.hdr.Config.SequenceFileName(15:end),'ty')) % revert to above statement for Matlab Release 2018+
         k = CINE_Tool_Trajectory(size(KSpace,1), size(KSpace,2),1); % For standard golden angle
     else
         k = CINE_Tool_Trajectory(size(KSpace,1), size(KSpace,2),7); % For tiny golden angle
@@ -37,12 +38,12 @@ for iFile=1:length(Filelist)    % Loop through selected files
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Debuging: Reduce number of slices or spokes
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%         iSlice=6:7;
-%         nSpokes=501:600;%size(KSpace,2);
-%         nSpokes=1:size(KSpace,2);
-%         KSpace=KSpace(:,nSpokes,:,iSlice);
-%         Times=Times(nSpokes,iSlice);
-%         k=k(:,nSpokes);
+    %    iSlice=6:7;
+    %    nSpokes=501:750;%size(KSpace,2);
+    %    nSpokes=1:size(KSpace,2);
+    %    KSpace=KSpace(:,nSpokes,:,iSlice);
+    %    Times=Times(nSpokes,iSlice);
+    %    k=k(:,nSpokes);
     
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -264,35 +265,35 @@ for iFile=1:length(Filelist)    % Loop through selected files
     end
     
     Patient=Filelist{iFile}(1:end-4);
-%     Date = GetFileTime([Path,Filelist{iFile}],'Local','Creation');
-%     Year=num2str(Date(1));
-%     if Date(2)<10
-%         Month=['0',num2str(Date(2))];
-%     else
-%         Month=num2str(Date(2));
-%     end
-%     if Date(3)<10
-%         Day=['0',num2str(Date(3))];
-%     else
-%         Day=num2str(Date(3));
-%     end
-%     if Date(4)<10
-%         Hour=['0',num2str(Date(4))];
-%     else
-%         Hour=num2str(Date(4));
-%     end
-%     if Date(5)<10
-%         Minute=['0',num2str(Date(5))];
-%     else
-%         Minute=num2str(Date(5));
-%     end
-%     if round(Date(6))<10
-%         Second=['0',num2str(Date(6))];
-%     else
-%         Second=num2str(Date(6));
-%     end
-    Date = '';%[Year,Month,Day];clear Year Month Day
-    Time='';%[Hour,Minute,Second];clear Hour Minute Second
+    Date = GetFileTime([Path,Filelist{iFile}],'Local','Creation');
+    Year=num2str(Date(1));
+    if Date(2)<10
+        Month=['0',num2str(Date(2))];
+    else
+        Month=num2str(Date(2));
+    end
+    if Date(3)<10
+        Day=['0',num2str(Date(3))];
+    else
+        Day=num2str(Date(3));
+    end
+    if Date(4)<10
+        Hour=['0',num2str(Date(4))];
+    else
+        Hour=num2str(Date(4));
+    end
+    if Date(5)<10
+        Minute=['0',num2str(Date(5))];
+    else
+        Minute=num2str(Date(5));
+    end
+    if round(Date(6))<10
+        Second=['0',num2str(Date(6))];
+    else
+        Second=num2str(Date(6));
+    end
+    Date = [Year,Month,Day];clear Year Month Day
+    Time=[Hour,Minute,Second];clear Hour Minute Second
     
     
     FrameCounter=0;
@@ -371,3 +372,4 @@ for iFile=1:length(Filelist)    % Loop through selected files
     display('Step 6 of 6 - Saving DICOMs - Image - Finished')
     
 end
+
