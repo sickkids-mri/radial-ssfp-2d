@@ -95,7 +95,6 @@ for iFile=1:length(Filelist)    % Loop through selected files
         parfor iSlice=1:size(STACKS,4)
             csm(:,:,:,iSlice) = ismrm_estimate_csm_walsh(STACKS(:,:,:,iSlice));
         end
-        poolobj=gcp('nocreat');delete(poolobj);clear poolobj % turn off parallel processing for now
     catch % if parallel processing failes (posibly due to memory) use a regular loop
         for iSlice=1:size(STACKS,4)
             csm(:,:,:,iSlice) = ismrm_estimate_csm_walsh(STACKS(:,:,:,iSlice));
@@ -197,7 +196,7 @@ for iFile=1:length(Filelist)    % Loop through selected files
         MOG(iSlice,1)=CINE_Tool_MOG(imgaussfilt(abs(RT(ROIy,ROIx,:,iSlice)),2),t,[],20,MI(:,iSlice),Initial_RRs(iSlice));% Run MOG to determine the heart-rate for each slice
     end
     clear RT Initial_RRs iSlice t ROIy ROIx
-    poolobj=gcp('nocreat');delete(poolobj);clear poolobj % turn off parallel processing
+    
     
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
