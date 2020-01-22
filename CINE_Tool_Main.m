@@ -265,36 +265,9 @@ for iFile=1:length(Filelist)    % Loop through selected files
     end
     
     Patient=Filelist{iFile}(1:end-4);
-    Date = GetFileTime([Path,Filelist{iFile}],'Local','Creation');
-    Year=num2str(Date(1));
-    if Date(2)<10
-        Month=['0',num2str(Date(2))];
-    else
-        Month=num2str(Date(2));
-    end
-    if Date(3)<10
-        Day=['0',num2str(Date(3))];
-    else
-        Day=num2str(Date(3));
-    end
-    if Date(4)<10
-        Hour=['0',num2str(Date(4))];
-    else
-        Hour=num2str(Date(4));
-    end
-    if Date(5)<10
-        Minute=['0',num2str(Date(5))];
-    else
-        Minute=num2str(Date(5));
-    end
-    if round(Date(6))<10
-        Second=['0',num2str(Date(6))];
-    else
-        Second=num2str(Date(6));
-    end
-    Date = [Year,Month,Day];clear Year Month Day
-    Time=[Hour,Minute,Second];clear Hour Minute Second
-    
+    fileInfo = dir([Path,Filelist{iFile}]);
+    Date = datestr( fileInfo.datenum, 'yyyyMMdd' );
+    Time = datestr( fileInfo.datenum, 'hhmmss' );
     
     FrameCounter=0;
     SliceCounter=1;
