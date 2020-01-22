@@ -40,12 +40,13 @@ for iFile=1:length(Filelist)    % Loop through selected files
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Debuging: Reduce number of slices or spokes
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %    iSlice=6:7;
-    %    nSpokes=501:750;%size(KSpace,2);
-    %    nSpokes=1:size(KSpace,2);
-    %    KSpace=KSpace(:,nSpokes,:,iSlice);
-    %    Times=Times(nSpokes,iSlice);
-    %    k=k(:,nSpokes);
+    %{
+    indSlice=round(size(KSpace,4)/2)-1+(1:2);
+    indSpoke=max(1,size(KSpace,2)-1200):size(KSpace,2);
+    KSpace=KSpace(:,indSpoke,:,indSlice);
+    Times=Times(indSpoke,indSlice);
+    k=k(:,indSpoke);
+    %}
     
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
