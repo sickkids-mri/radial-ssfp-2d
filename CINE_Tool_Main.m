@@ -251,7 +251,7 @@ for iFile=1:length(Filelist)    % Loop through selected files
     end
     
     
-    clearvars -except CINEs Header Filelist iFile Path
+    clearvars -except CINEs Header Filelist iFile Path resetPath
     
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
