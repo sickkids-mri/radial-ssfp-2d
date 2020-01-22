@@ -2,7 +2,9 @@ function CINE_Tool_Main
 
 % Chris Roy 2018
 
+origPath = path;
 addpath(genpath('utilities'))
+resetPath = onCleanup(@()path(origPath));
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Select one or more meas_XXXXX.dat files
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
