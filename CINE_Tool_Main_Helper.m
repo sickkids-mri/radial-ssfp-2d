@@ -20,13 +20,13 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % Debuging: Reduce number of slices or spokes
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        %{
-        indSlice=round(size(KSpace,4)/2)-1+(1:2);
-        indSpoke=max(1,size(KSpace,2)-1200):size(KSpace,2);
+       %{ 
+        indSlice=round(size(KSpace,4)/2)-1+(1);
+        indSpoke=max(1,size(KSpace,2)-600):size(KSpace,2);
         KSpace=KSpace(:,indSpoke,:,indSlice);
         Times=Times(indSpoke,indSlice);
         k=k(:,indSpoke);
-        %}
+       %}
         
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -183,7 +183,7 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         for iSlice=1:size(RT,4)
             MOG(iSlice,1)=CINE_Tool_MOG(imgaussfilt(abs(RT(ROIy,ROIx,:,iSlice)),2),t,[],20,MI(:,iSlice),Initial_RRs(iSlice));% Run MOG to determine the heart-rate for each slice
         end
-        clear RT Initial_RRs iSlice t ROIy ROIx
+        clear RT Initial_RRs iSlice t %ROIy ROIx
         
         %% 5 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %
@@ -231,8 +231,17 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             param.tol=0.0025;
             
             CINEs(:,:,:,iSlice) = CINE_Tool_MOG_Recon(param);
+            
+            if (iSlice ~= 1)
+                maskTgt = zeros(size(CINEs(:,:,1))); 
+                maskTgt(ROIy,ROIx,:)=1;
+                [ CINEs(:,:,:,iSlice) ] = align_cardiac_phase_cine2cine( CINEs(:,:,:,iSlice-1), maskTgt, CINEs(:,:,:,iSlice), maskTgt);
+            end
+            
         end
         save( matFilePath, 'CINEs', '-v7.3' )
+        fprintf('Cardiac Phase Alignment - Done \n');
+    
         clearvars -except CINEs Header FileName outputDirPath
           
         %% 6 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -243,7 +252,7 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         
         %     StartTime=; %Keep track of internal clock time to aproximate time remaining for current step
      
-       %{ 
+        
         Patient=num2str(1);
         fileInfo = dir(FileName);
         Date = datestr( fileInfo.datenum, 'yyyyMMdd' );
@@ -266,9 +275,11 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         fprintf( 'Saving results...\n' )
     
         outputFileNamePrefix = strrep( FileName, 'meas_', '' );
+        outputFileNamePrefix = outputFileNamePrefix(1:end-4)
         dicomFileName = sprintf( '%s.dcm', outputFileNamePrefix );
         dicomFilePath = fullfile( outputDirPath, dicomFileName );
-        
+        fprintf('Dicom file name: %s \n', dicomFileName);
+        fprintf('Dicom file path: %s \n', dicomFilePath);
         fprintf('Step 5 of 6 - Reconstructing CINE Images - Finished \n');
         fprintf('Step 6 of 6 - Saving DICOMs - Image \n');
     
@@ -311,13 +322,13 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             info.AcquisitionTime=Time;
             info.SliceThickness=Header{1,size(Header,2)}.hdr.MeasYaps.sSliceArray.asSlice{1,1}.dThickness;
             info.Filename=FileName;
-    
-            dicomwrite(I(:,:,FrameCounter),[outputDirPath,'_Slice_',num2str(SliceCounter),'_Frame_',num2str(FrameCounter),'.dcm'],info);
+            
+            dicomwrite(I(:,:,FrameCounter),[[outputDirPath,'/'],'Slice_',num2str(SliceCounter),'_Frame_',num2str(FrameCounter),dicomFileName],info);
         end
-        %}
+        
         clearvars 
     
-        %fprintf('Step 6 of 6 - Saving DICOMs - Image - Finished \n');
+        fprintf('Step 6 of 6 - Saving DICOMs - Image - Finished \n');
         
     end
     
