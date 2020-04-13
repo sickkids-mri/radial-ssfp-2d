@@ -290,6 +290,15 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         info.PatientName=patientName;
         info.ImageComments='N/A';
         info.PatientComments='N/A';
+        info.ProtocolName           = Header{end}.hdr.Dicom.tProtocolName;   
+        info.SeriesDescription      = Header{end}.hdr.Dicom.tProtocolName;
+        info.SequenceName           = Header{end}.hdr.Config.SequenceString;
+        info.SequenceString         = Header{end}.hdr.Config.SequenceString;        
+        info.SequenceVariant        = Header{end}.hdr.Dicom.tSequenceVariant;       
+        info.ScanningSequence       = Header{end}.hdr.Dicom.tScanningSequence;      
+        info.ScanOptions            = Header{end}.hdr.Dicom.tScanOptions;           
+        info.MRAcquisitionType      = Header{end}.hdr.Dicom.tMRAcquisitionType;     
+
         
         SlicePos=Header{1,2}.image.slicePos(:,1:Header{1,2}.image.NLin:end);
         
