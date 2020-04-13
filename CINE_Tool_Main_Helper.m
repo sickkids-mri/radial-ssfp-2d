@@ -265,7 +265,27 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         info.StudyInstanceUID=dicomuid;
         info.SeriesInstanceUID=dicomuid;
         info.Manufacturer='SIEMENS';
-        info.PixelSpacing=[1;1];
+        if isfield(Header{end}.hdr.Meas,'PhaseFoV')
+            phaseFOV = Header{end}.hdr.Meas.PhaseFoV;
+        elseif isfield(Header{end}.hdr.Config,'PhaseFoV')
+            phaseFOV = Header{end}.hdr.Config.PhaseFoV;
+        else
+            phaseFOV = NaN;
+        end
+        if isfield(Header{end}.hdr.Meas,'PhaseEncodingLines')
+            nPhaseEncodingLines = Header{end}.hdr.Meas.PhaseEncodingLines;
+        elseif isfield(Header{end}.hdr.Config,'PhaseEncodingLines')
+            nPhaseEncodingLines = Header{end}.hdr.Config.PhaseEncodingLines;
+        else
+            nPhaseEncodingLines = NaN;
+        end
+        if isnan( phaseFOV ) || isnan( nPhaseEncodingLines )
+            pixelSpacing = [1,1];
+            fprintf( 'Warning: Cannot read phase FOV or number of phase enconding lines from header. Assuming pixel spacing is %gx%g mm.\n', pixelSpacing(1), pixelSpacing(2) )
+        else
+            pixelSpacing = phaseFOV / nPhaseEncodingLines * [1,1];
+        end
+        info.PixelSpacing=pixelSpacing;
         info.Modality = 'MR';
         info.PatientName=patientName;
         info.ImageComments='N/A';
