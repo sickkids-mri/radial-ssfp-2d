@@ -255,8 +255,8 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         
         Patient=num2str(1);
         fileInfo = dir(FileName);
-        Date = datestr( fileInfo.datenum, 'yyyyMMdd' );
-        Time = datestr( fileInfo.datenum, 'hhmmss' );
+        Date = datestr( fileInfo.datenum, 'yyyymmdd' );
+        Time = datestr( fileInfo.datenum, 'hhMMss' );
         
         FrameCounter=0;
         SliceCounter=1;
