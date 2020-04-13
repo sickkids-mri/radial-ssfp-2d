@@ -1,4 +1,4 @@
-function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,Path)
+function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,patientName)
 
     % Chris Roy 2018
         fprintf('Output path: %s \n', outputDirPath);
@@ -252,8 +252,9 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         
         %     StartTime=; %Keep track of internal clock time to aproximate time remaining for current step
      
-        
-        Patient=num2str(1);
+        if isfield( Header{end}.hdr.Dicom, 'tPatientName' ) && ~exist('patientName','var')
+            patientName = Header{end}.hdr.Dicom.tPatientName;
+        end
         fileInfo = dir(FileName);
         Date = datestr( fileInfo.datenum, 'yyyymmdd' );
         Time = datestr( fileInfo.datenum, 'hhMMss' );
@@ -266,7 +267,7 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         info.Manufacturer='SIEMENS';
         info.PixelSpacing=[1;1];
         info.Modality = 'MR';
-        info.PatientName=Patient;
+        info.PatientName=patientName;
         info.ImageComments='N/A';
         info.PatientComments='N/A';
         

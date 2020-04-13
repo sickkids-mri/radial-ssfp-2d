@@ -36,7 +36,7 @@ fprintf('Reading raw data %s \n', scanFilePath);
 Path = scanFilePath;
 [KSpace,Times,Noise,Header]=CINE_Tool_Read_Raw_Data(Path);
 
-CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,scanFileName,outputDirPath);
+CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,scanFileName,outputDirPath,taskParam.task.patientname);
 
 fprintf('Reconstructions finished. \n');
 
