@@ -25,7 +25,7 @@ for iFile=1:length(Filelist)    % Loop through selected files
     display('___________________________________________________________________________') %#ok<*DISPLAYPROG>
     display('Step 1 of 6 - Loading Raw Data')
     [KSpace,Times,Noise,Header]=CINE_Tool_Read_Raw_Data(Path,Filelist{iFile}); % Read in raw data and header information from each meas_XXXX.dat file
-    
+    display(['Initial Kspace Size: ',mat2str(size(KSpace))])
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Calculate trajectory and ramp weighting
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -64,6 +64,8 @@ for iFile=1:length(Filelist)    % Loop through selected files
         KSpace=KSpace(:,:,Coils(~isnan(Coils)),:);
     end
     clear Noise Coils
+    display(['Kspace Size (After Removing Noisy Channels): ',mat2str(size(KSpace))])
+
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Perform coil compression to speed up reconstructions
     % We compress to 8 coils here somewhat arbitrarily. Could be improved
@@ -81,7 +83,7 @@ for iFile=1:length(Filelist)    % Loop through selected files
         KSpace=KSpace(:,:,1:8,:);
         clear V
     end
-    
+    display(['Kspace Size (End of Step 1): ',mat2str(size(KSpace))])
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Estimate coil sensititives from image reconstructions using all acquires spokes
@@ -123,7 +125,7 @@ for iFile=1:length(Filelist)    % Loop through selected files
         param.E=swap_b1(param.E,csm(:,:,:,iSlice)); % Add the correct coil-sensititivy map for each slice to the NUFFT operator
         param.y=CINE_Tool_RT_Sort(KSpace(:,:,:,iSlice),kRT,15,10); % compute re-sorted KSpace for each slice using the sliding window parameters described above
         
-        clc
+        %clc
         display(['File ',num2str(iFile),' of ',num2str(length(Filelist))])
         display('___________________________________________________________________________')
         display('Step 1 of 6 - Loading Raw Data - Finished')
@@ -161,7 +163,7 @@ for iFile=1:length(Filelist)    % Loop through selected files
     
     myTransforms=zeros(AVGFrames,2,size(RT,4));
     for iSlice=1:size(RT,4)
-        clc
+        %clc
         display(['File ',num2str(iFile),' of ',num2str(length(Filelist))])
         display('Step 1 of 6 - Loading Raw Data - Finished')
         display('___________________________________________________________________________')
@@ -232,6 +234,8 @@ for iFile=1:length(Filelist)    % Loop through selected files
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         kMOG=zeros(size(KSpace,1),rSpokes,rFrames,'single'); %Initialize variable
         param.y=zeros(size(KSpace,1),rSpokes,size(KSpace,3),rFrames,'single'); %Initialize variable
+        display(['Slice #: ', num2str(iSlice)])
+        display(['KSpace Size (After Spoke Removal): ',mat2str(size(param.y))])
         for iFrame=1:rFrames
             param.y(:,:,:,iFrame)=bsxfun(@times,bsxfun(@times,KSpace(:,SpokeIndices(1:rSpokes,iFrame),:,iSlice),MOCO(:,SpokeIndices(1:rSpokes,iFrame))),W(:,SpokeIndices(1:rSpokes,iFrame),iFrame));
             kMOG(:,:,iFrame)=k(:,SpokeIndices(1:rSpokes,iFrame));
@@ -245,6 +249,10 @@ for iFile=1:length(Filelist)    % Loop through selected files
         param.tol=0.0025;
         
         CINEs(:,:,:,iSlice) = CINE_Tool_MOG_Recon(param);
+       
+        
+        
+    display(['Final CINEs Size: ',mat2str(size(CINEs))])
     end
     
     clearvars -except CINEs Header Filelist iFile Path resetPath  
@@ -276,8 +284,17 @@ for iFile=1:length(Filelist)    % Loop through selected files
     info.PatientName=Patient;
     info.ImageComments='N/A';
     info.PatientComments='N/A';
+    %Find max and min slice position from SlicePos
+    SlicePos_Size = size(Header{1,2}.image.slicePos(),2);
+    SlicePos_MAX = Header{1,2}.image.slicePos(1,SlicePos_Size);
+    SlicePos_MIN = Header{1,2}.image.slicePos(1,1);
+    
     
     SlicePos=Header{1,2}.image.slicePos(:,1:Header{1,2}.image.NLin:end);
+    
+    %Find unique SlicePos columns, and flip coordinates over columns
+    SlicePos=flip(unique(SlicePos.','rows').',2);
+    
     for iDCM=1:size(CINEs,3)*size(CINEs,4)
         clc
         display(['File ',num2str(iFile),' of ',num2str(length(Filelist))])
@@ -288,11 +305,10 @@ for iFile=1:length(Filelist)    % Loop through selected files
         display('Step 4 of 6 - Calculating Heart Rate - Finished')
         display('Step 5 of 6 - Reconstructing CINE Images - Finished')
         display(['Step 6 of 6 - Saving DICOMs - Image ',num2str(iDCM),' of ',num2str(size(CINEs,3)*size(CINEs,4))])
-        
         FrameCounter=FrameCounter+1;
         if FrameCounter>size(CINEs,3)
-            FrameCounter=1;
-            SliceCounter=SliceCounter+1;
+           FrameCounter=1;
+           SliceCounter=SliceCounter+1;
         end
         
         
@@ -301,10 +317,6 @@ for iFile=1:length(Filelist)    % Loop through selected files
         info.InstanceNumber=iDCM;
         
         info.SliceLocation=SliceCounter*Header{1,size(Header,2)}.hdr.MeasYaps.sSliceArray.asSlice{1,1}.dThickness;
-        
-        info.ImagePositionPatient=SlicePos(1:3,SliceCounter);
-        
-        info.Private_0019_1015=SlicePos(1:3,SliceCounter);
         info.Private_0019_1016=SlicePos(1:3,SliceCounter);
         
         slicePos = Header{1, size(Header,2)}.image.slicePos(4:7,1);
@@ -312,10 +324,39 @@ for iFile=1:length(Filelist)    % Loop through selected files
         R = [a*a+b*b-c*c-d*d, 2*b*c-2*a*d, 2*b*d+2*a*c;
             2*b*c+2*a*d, a*a-b*b+c*c-d*d, 2*c*d-2*a*b;
             2*b*d-2*a*c, 2*c*d+2*a*b, a*a-b*b-c*c+d*d  ];
-        newR = R*[1 0 0; 0 1 0]';
+        newR = R*[0 -1 0; 1 0 0]';
         info.ImageOrientationPatient = newR(:);
         
+        % Find correct pixel spacing for dicom
+        fovx_raw = Header{1,size(Header,2)}.hdr.MeasYaps.sSliceArray.asSlice{1,1}.dReadoutFOV;
+        fovy_raw = Header{1,size(Header,2)}.hdr.MeasYaps.sSliceArray.asSlice{1,1}.dPhaseFOV;
+        nx = Header{1,size(Header,2)}.hdr.Config.ImageColumns;
+        ny = Header{1,size(Header,2)}.hdr.Config.ImageLines;
+        dx = fovx_raw/nx;
+        dy = fovy_raw/ny;
+        info.PixelSpacing=[dy;dx];
         
+        %Find correct patient orientation
+        fovx_img = size(CINEs,1);
+        fovy_img = size(CINEs,2);
+
+        %Flip slicepos depending on whether the diff between the first/last
+        %slice position is positive or negative
+        if SlicePos_MAX-SlicePos_MIN >=0
+            SlicePos = unique(SlicePos.','rows').';
+        elseif SlicePos_MAX-SlicePos_MIN<0
+            SlicePos=flip(unique(SlicePos.','rows').',2);
+        end
+        
+        %Find correct central coordinates based on SlicePos
+        central_coordinates = SlicePos(1:3,SliceCounter);
+        z_pos_add = Header{1,size(Header,2)}.hdr.MeasYaps.lScanRegionPosTra;
+        
+        %Apply transformation to central coordinates in order to get
+        %correct imagepositionpatient value
+        info.ImagePositionPatient=central_coordinates-(fovx_img/2)*newR(:,1) - (fovy_img/2)*newR(:,2)+[0;0;z_pos_add];
+        info.Private_0019_1015=central_coordinates-(fovx_img/2)*newR(:,1) - (fovy_img/2)*newR(:,2);
+
         info.SeriesNumber=SeriesCounter;
         info.StudyDate=Date;
         info.SeriesDate=Date;
@@ -328,6 +369,7 @@ for iFile=1:length(Filelist)    % Loop through selected files
         info.Filename=[[Path,'Dicoms/'],Filelist{iFile}(1:end-4),'_Slice_',num2str(SliceCounter),'_Frame_',num2str(FrameCounter),'.dcm'];
         
         dicomwrite(I(:,:,FrameCounter),[[Path,'Dicoms/'],Filelist{iFile}(1:end-4),'_Slice_',num2str(SliceCounter),'_Frame_',num2str(FrameCounter),'.dcm'],info);
+
     end
     clearvars -except Filelist iFile Path
     clc
@@ -339,6 +381,5 @@ for iFile=1:length(Filelist)    % Loop through selected files
     display('Step 4 of 6 - Calculating Heart Rate - Finished')
     display('Step 5 of 6 - Reconstructing CINE Images - Finished')
     display('Step 6 of 6 - Saving DICOMs - Image - Finished')
-    
 end
 
