@@ -9,7 +9,7 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         % Calculate trajectory and ramp weighting
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %     if ~contains(Header{1,length(Header)}.hdr.Config.SequenceFileName(15:end),'ty')
-        if ~sum(strfind(Header{1,length(Header)}.hdr.Config.SequenceFileName(15:end),'ty')) % revert to above statement for Matlab Release 2018+
+        if ~sum(strfind(Header{end}.hdr.Config.SequenceFileName(15:end),'ty')) % revert to above statement for Matlab Release 2018+
             k = CINE_Tool_Trajectory(size(KSpace,1), size(KSpace,2),1); % For standard golden angle
         else
             k = CINE_Tool_Trajectory(size(KSpace,1), size(KSpace,2),7); % For tiny golden angle
@@ -105,8 +105,9 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         matFileName = strcat( 'reconstructed_RT_images_', outputFileNamePrefix, '.mat' );
         matFilePath = fullfile( outputDirPath, matFileName );
         fprintf( '   %s\n', matFilePath );
-    
+
         for iSlice=1:size(csm,4)
+            fprintf( '    slice %i of %i\n', iSlice, size(csm,4) )
             param.E=swap_b1(param.E,csm(:,:,:,iSlice)); % Add the correct coil-sensititivy map for each slice to the NUFFT operator
             param.y=CINE_Tool_RT_Sort(KSpace(:,:,:,iSlice),kRT,15,10); % compute re-sorted KSpace for each slice using the sliding window parameters described above
             RT(:,:,:,iSlice) = CINE_Tool_RT_Recon(param); % perform compressed sensing reconstruction for each slice
@@ -151,18 +152,24 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
     
             Targets=repmat(RTAVG(:,:,MI(:,iSlice)==max(MI(:,iSlice)),iSlice),[1,1,AVGFrames]); % Choose frame that has the highest mutual information with all frames as a target for motion correction
             myTransforms(:,:,iSlice) = CINE_Tool_MOCO(abs(RTAVG(:,:,:,iSlice)),abs(Targets), MOCOy,MOCOx); % Estimate translational displacement from the lower temporal resolution real-time images
+            fprintf( 'slice %i\n', iSlice )
+            disp( myTransforms(:,:,iSlice) )
         end
         RT = CINE_Tool_Correct_RT(RT,-myTransforms);% Apply motion estimations to real-time reconstructions
         
+        magTempMeanRT = abs( mean( RT, 3 ) );
         matFileName = strcat( 'calculated_translational_motion_', outputFileNamePrefix, '.mat' );
         matFilePath = fullfile( outputDirPath, matFileName );
         fprintf( '   %s\n', matFilePath );
-        save( matFilePath, 'RT', '-v7.3' )
-        
+        %save( matFilePath, 'RT', 'MI', 'myTransforms', '-v7.3' )
+        save( matFilePath, 'magTempMeanRT', 'MI', 'ROIx', 'ROIy', 'MIx', 'MIy', 'myTransforms', '-v7.3' )
+
         clear RTAVG MOCOy MOCOx AVGFrames iSlice Targets
         %% Save Data to .mat File
-    
+  	    matFileName = strcat( 'motion-corrected_RT_images_', outputFileNamePrefix, '.mat' );
         matFilePath = fullfile( outputDirPath, matFileName );
+        fprintf( '   %s\n', matFilePath );
+        save( matFilePath, 'RT', '-v7.3' )
     
         %% 4 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %
@@ -177,7 +184,7 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         
         MI = CINE_Tool_Mutual_Information(Decimate_CINE(RT(MIy,MIx,:,:),4));% update mutual information of all frames using motion corrected real-time
         clear MIy MIx
-        MOG=struct('RWaveTimes',[]);% Create structure that will keep the RWaveTimes determined by MOG
+        MOG=struct('RWaveTimes',[],'Entropy',[]);% Create structure that will keep the RWaveTimes determined by MOG
         fprintf('Step 3 of 6 - Calculating Translational Motion - Finished \n');
         fprintf('Step 4 of 6 - Calculating Heart Rate \n');
         for iSlice=1:size(RT,4)
@@ -202,6 +209,8 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         
         for iSlice=1:size(KSpace,4)
         
+	          fprintf( '  slice %i of %i\n', iSlice, size(KSpace,4) )
+
             CP = Calculate_CardiacPhases(Times(:,iSlice)-min(Times(:,iSlice)),MOG(iSlice).RWaveTimes);% Calculate caridac phase for each slice according to RWaveTimes from MOG
             MOCO=exp(-2*pi*1i*(-bsxfun(@times,imresize(-myTransforms(:,2,iSlice),[size(KSpace,2),1])',real(k))-bsxfun(@times,imresize(-myTransforms(:,1,iSlice),[size(KSpace,2),1])',imag(k)))); %Calculate
             % phase change to be applied to K-space for each slice to correct for the estimated motions
@@ -210,7 +219,7 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             
             [~,SpokeIndices]=sort(squeeze(W(1,:,:)),1,'descend');rSpokes=max(sum(squeeze(W(1,:,:))>max(W(:))/1000)); % Sort spokes according to weights
             % and calculate the total number of spokes required per frame based on exclusion of spokes that are <0.1%of the max weight
-            
+            fprintf('spokes per frame:  rSpokes(slice=%2i) = %5i  (%6i acquired spokes per slice, %2i frames per cine)\n',iSlice,rSpokes,size(KSpace,2),rFrames)
             
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Re-sort k-space according to the weighting matrix (W) and
@@ -232,15 +241,21 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             
             CINEs(:,:,:,iSlice) = CINE_Tool_MOG_Recon(param);
             
+            fprintf('  Cardiac Phase Alignment - Starting \n');
+            srcDelay = zeros(1,size(CINEs,4));
             if (iSlice ~= 1)
                 maskTgt = zeros(size(CINEs(:,:,1))); 
                 maskTgt(ROIy,ROIx,:)=1;
-                [ CINEs(:,:,:,iSlice) ] = align_cardiac_phase_cine2cine( CINEs(:,:,:,iSlice-1), maskTgt, CINEs(:,:,:,iSlice), maskTgt);
+                [ CINEs(:,:,:,iSlice), srcDelay(iSlice) ] = align_cardiac_phase_cine2cine( CINEs(:,:,:,iSlice-1), maskTgt, CINEs(:,:,:,iSlice), maskTgt);
             end
+            fprintf('  Cardiac Phase Alignment - Done \n');
+
             
         end
-        save( matFilePath, 'CINEs', '-v7.3' )
-        fprintf('Cardiac Phase Alignment - Done \n');
+        fprintf( '  Saving %s\n', matFilePath );
+        save( matFilePath, 'CINEs', 'MI', 'MOG', 'srcDelay', 'ROIx', 'ROIy','-v7.3' )
+        fprintf('Step 5 of 6 - Reconstructing CINE Images - Finished \n');
+
     
         clearvars -except CINEs Header FileName outputDirPath
           
@@ -251,10 +266,13 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         %     StartTime=; %Keep track of internal clock time to aproximate time remaining for current step
-     
+        
+        fprintf('Step 6 of 6 - Saving DICOMs - Image \n');
+        fprintf( '  Assigning patientName if missing.\n' )
         if isfield( Header{end}.hdr.Dicom, 'tPatientName' ) && ~exist('patientName','var')
             patientName = Header{end}.hdr.Dicom.tPatientName;
         end
+        fprintf( '  Setting dicom date and time info.\n' )
         fileInfo = dir(FileName);
         Date = datestr( fileInfo.datenum, 'yyyymmdd' );
         Time = datestr( fileInfo.datenum, 'hhMMss' );
@@ -262,9 +280,13 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         FrameCounter=0;
         SliceCounter=1;
         SeriesCounter=0;
+        
+        fprintf( '  Setting dicom study and series instance.\n' )
         info.StudyInstanceUID=dicomuid;
         info.SeriesInstanceUID=dicomuid;
         info.Manufacturer='SIEMENS';
+        
+        fprintf( '  Calculating pixel spacing.\n' )
         if isfield(Header{end}.hdr.Meas,'PhaseFoV')
             phaseFOV = Header{end}.hdr.Meas.PhaseFoV;
         elseif isfield(Header{end}.hdr.Config,'PhaseFoV')
@@ -286,6 +308,8 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             pixelSpacing = phaseFOV / nPhaseEncodingLines * [1,1];
         end
         info.PixelSpacing=pixelSpacing;
+        
+        fprintf( '  Setting dicom header info.\n' )
         info.Modality = 'MR';
         info.PatientName=patientName;
         info.ImageComments='N/A';
@@ -299,20 +323,18 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         info.ScanOptions            = Header{end}.hdr.Dicom.tScanOptions;           
         info.MRAcquisitionType      = Header{end}.hdr.Dicom.tMRAcquisitionType;     
 
+        fprintf( '  Calculating slice positions.\n' )
+        SlicePos=Header{end}.image.slicePos(:,1:Header{end}.image.NLin:end);
         
-        SlicePos=Header{1,2}.image.slicePos(:,1:Header{1,2}.image.NLin:end);
-        
-        fprintf( 'Saving results...\n' )
-    
+        fprintf( '  Setting dicom file names and paths.\n' )
         outputFileNamePrefix = strrep( FileName, 'meas_', '' );
-        outputFileNamePrefix = outputFileNamePrefix(1:end-4)
+        outputFileNamePrefix = outputFileNamePrefix(1:end-4);
         dicomFileName = sprintf( '%s.dcm', outputFileNamePrefix );
         dicomFilePath = fullfile( outputDirPath, dicomFileName );
         fprintf('Dicom file name: %s \n', dicomFileName);
         fprintf('Dicom file path: %s \n', dicomFilePath);
-        fprintf('Step 5 of 6 - Reconstructing CINE Images - Finished \n');
-        fprintf('Step 6 of 6 - Saving DICOMs - Image \n');
     
+        fprintf( '  Creating dicom files.\n' )
         for iDCM=1:size(CINEs,3)*size(CINEs,4)
             
             FrameCounter=FrameCounter+1;
@@ -321,19 +343,22 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
                 SliceCounter=SliceCounter+1;
             end
             
-            
+            fprintf( '  Extracting images from CINEs array.\n' )
             I=int16(255*abs(CINEs(:,:,:,SliceCounter)./max(col(CINEs(:,:,:,SliceCounter)))));
             
+            fprintf( '  Setting dicom instance number.\n' )
             info.InstanceNumber=iDCM;
             
-            info.SliceLocation=SliceCounter*Header{1,size(Header,2)}.hdr.MeasYaps.sSliceArray.asSlice{1,1}.dThickness;
+            fprintf( '  Setting dicom slice location.\n' )
+            info.SliceLocation=SliceCounter*Header{end}.hdr.MeasYaps.sSliceArray.asSlice{1,1}.dThickness;
             
+            fprintf( '  Setting dicom image patient position.\n' )
             info.ImagePositionPatient=SlicePos(1:3,SliceCounter);
             
             info.Private_0019_1015=SlicePos(1:3,SliceCounter);
             info.Private_0019_1016=SlicePos(1:3,SliceCounter);
             
-            slicePos = Header{1, size(Header,2)}.image.slicePos(4:7,1);
+            slicePos = Header{end}.image.slicePos(4:7,1);
             a = slicePos(1); b = slicePos(2); c = slicePos(3); d = slicePos(4);
             R = [a*a+b*b-c*c-d*d, 2*b*c-2*a*d, 2*b*d+2*a*c;
                 2*b*c+2*a*d, a*a-b*b+c*c-d*d, 2*c*d-2*a*b;
@@ -341,7 +366,7 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             newR = R*[1 0 0; 0 1 0]';
             info.ImageOrientationPatient = newR(:);
             
-            
+            fprintf( '  Setting dicom series number and date/time info.\n' )
             info.SeriesNumber=SeriesCounter;
             info.StudyDate=Date;
             info.SeriesDate=Date;
@@ -350,9 +375,12 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             info.StudyTime=Time;
             
             info.AcquisitionTime=Time;
-            info.SliceThickness=Header{1,size(Header,2)}.hdr.MeasYaps.sSliceArray.asSlice{1,1}.dThickness;
-            info.Filename=FileName;
             
+            fprintf( '  Setting dicom slice thickness.\n' )
+            info.SliceThickness=Header{end}.hdr.MeasYaps.sSliceArray.asSlice{1,1}.dThickness;
+            fprintf( '  Setting dicom filename field.\n' )
+            info.Filename=FileName;
+            fprintf( '  Writing dicom file for slice %i and frame %i\n', SliceCounter, FrameCounter )
             dicomwrite(I(:,:,FrameCounter),[[outputDirPath,'/'],'Slice_',num2str(SliceCounter),'_Frame_',num2str(FrameCounter),dicomFileName],info);
         end
         
@@ -360,5 +388,5 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
     
         fprintf('Step 6 of 6 - Saving DICOMs - Image - Finished \n');
         
-    end
+end  % CINE_Tool_Main_Helper(...)
     
