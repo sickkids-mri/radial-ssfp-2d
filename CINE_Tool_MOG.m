@@ -21,6 +21,7 @@ for loop=1:floor(log2(length(MOG_RWaveTimes)))
 end
 
 log(1).RWaveTimes=Linear_Transition_Model(PreviousPara,Scanlength);
+log(1).Entropy=M;
 
 % display('Final Reconstruction')
 % log=log(end);

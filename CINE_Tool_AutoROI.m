@@ -24,7 +24,7 @@ if mean(abs(diff(1000./abs(f(iF)))))>50
     [ROIy,ROIx] = CINE_Tool_Enlarge_ROI(round(size(RT,i)/2),round(size(RT,i)/2),round(size(RT,i)/4),round(size(RT,i)/4));
     if min(ROIy)<0,ROIy=ROIy-min(ROIy(:))+1;end;if min(ROIx)<0,ROIx=ROIx-min(ROIx(:))+1;end
     if max(ROIy)>size(RT,1),ROIy=ROIy(1):size(RT,1);end;if max(ROIx)>size(RT,2),ROIx=ROIx(1):size(RT,2);end
-    
+
 
     if isempty(ROIy), ROIy=1:size(RT,1);end
     if isempty(ROIx), ROIx=1:size(RT,2);end
@@ -42,9 +42,9 @@ if mean(abs(diff(1000./abs(f(iF)))))>50
     SIGS=[];
     RRs=[];
 else
-    
-    
-    
+
+
+
     iFF=1:size(RT,3);iFF(ceil(length(iFF)/2))=nan;
     iFF(iF)=nan;iFF=iFF(~isnan(iFF));
     

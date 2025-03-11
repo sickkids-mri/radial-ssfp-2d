@@ -1,5 +1,5 @@
 function [KSpace,Times,Noise,Header]=CINE_Tool_Read_Raw_Data(d,filelist)
-Header = mapVBVD([d,filelist]);
+Header = mapVBVD(d);
 Noise=[];
 try Noise = Header{1,1}.noise();end %#ok<*TRYNC>
 try KSpace = Header.image();end
