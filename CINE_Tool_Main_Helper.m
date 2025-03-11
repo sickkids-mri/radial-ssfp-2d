@@ -32,6 +32,7 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % Remove noisey channels
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        display(['Initial Kspace Size: ',mat2str(size(KSpace))])
         if ~isempty(Noise)
             Noise=squeeze(mean(mean(mean(abs(Noise),1),3),6));
             Coils=1:length(Noise);
@@ -43,6 +44,7 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             KSpace=KSpace(:,:,Coils(~isnan(Coils)),:);
         end
         clear Noise Coils
+        display(['Kspace Size (After Removing Noisy Channels): ',mat2str(size(KSpace))])
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % Perform coil compression to speed up reconstructions
         % We compress to 8 coils here somewhat arbitrarily. Could be improved
@@ -58,8 +60,9 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
                 KSpace(:,:,:,iSlice)=reshape(reshape(KSpace(:,:,:,iSlice),size(KSpace,1)*size(KSpace,2),size(KSpace,3))*V,size(KSpace,1),size(KSpace,2),size(KSpace,3));
             end
             KSpace=KSpace(:,:,1:8,:);
-            clear 
+            clear V
         end
+        display(['Kspace Size (After Coil Compression): ',mat2str(size(KSpace))])
         
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -227,6 +230,8 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             kMOG=zeros(size(KSpace,1),rSpokes,rFrames,'single'); %Initialize variable
             param.y=zeros(size(KSpace,1),rSpokes,size(KSpace,3),rFrames,'single'); %Initialize variable
+            display(['Slice #: ', num2str(iSlice)])
+            display(['KSpace Size (After Spoke Removal): ',mat2str(size(param.y))])
             for iFrame=1:rFrames
                 param.y(:,:,:,iFrame)=bsxfun(@times,bsxfun(@times,KSpace(:,SpokeIndices(1:rSpokes,iFrame),:,iSlice),MOCO(:,SpokeIndices(1:rSpokes,iFrame))),W(:,SpokeIndices(1:rSpokes,iFrame),iFrame));
                 kMOG(:,:,iFrame)=k(:,SpokeIndices(1:rSpokes,iFrame));
@@ -250,6 +255,7 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             end
             fprintf('  Cardiac Phase Alignment - Done \n');
 
+            display(['Final CINE Size: ',mat2str(size(CINEs))])
             
         end
         fprintf( '  Saving %s\n', matFilePath );
@@ -325,6 +331,10 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
 
         fprintf( '  Calculating slice positions.\n' )
         SlicePos=Header{end}.image.slicePos(:,1:Header{end}.image.NLin:end);
+        % Find max and min sag coordinate from SlicePos
+        SlicePos_Size = size(Header{end}.image.slicePos(),2);
+        SlicePos_MAX = Header{end}.image.slicePos(1,SlicePos_Size);
+        SlicePos_MIN = Header{end}.image.slicePos(1,1);
         
         fprintf( '  Setting dicom file names and paths.\n' )
         outputFileNamePrefix = strrep( FileName, 'meas_', '' );
@@ -353,19 +363,44 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             info.SliceLocation=SliceCounter*Header{end}.hdr.MeasYaps.sSliceArray.asSlice{1,1}.dThickness;
             
             fprintf( '  Setting dicom image patient position.\n' )
-            info.ImagePositionPatient=SlicePos(1:3,SliceCounter);
-            
-            info.Private_0019_1015=SlicePos(1:3,SliceCounter);
             info.Private_0019_1016=SlicePos(1:3,SliceCounter);
             
-            slicePos = Header{end}.image.slicePos(4:7,1);
-            a = slicePos(1); b = slicePos(2); c = slicePos(3); d = slicePos(4);
+            slcPos = Header{end}.image.slicePos(4:7,1);
+            a = slcPos(1); b = slcPos(2); c = slcPos(3); d = slcPos(4);
             R = [a*a+b*b-c*c-d*d, 2*b*c-2*a*d, 2*b*d+2*a*c;
                 2*b*c+2*a*d, a*a-b*b+c*c-d*d, 2*c*d-2*a*b;
                 2*b*d-2*a*c, 2*c*d+2*a*b, a*a-b*b-c*c+d*d  ];
-            newR = R*[1 0 0; 0 1 0]';
+            newR = R*[0 -1 0; 1 0 0]';
             info.ImageOrientationPatient = newR(:);
             
+            % Find correct pixel spacing for dicom
+            fovx_raw = Header{1,size(Header,2)}.hdr.MeasYaps.sSliceArray.asSlice{1,1}.dReadoutFOV;
+            fovy_raw = Header{1,size(Header,2)}.hdr.MeasYaps.sSliceArray.asSlice{1,1}.dPhaseFOV;
+            nx = Header{1,size(Header,2)}.hdr.Config.ImageColumns;
+            ny = Header{1,size(Header,2)}.hdr.Config.ImageLines;
+            dx = fovx_raw/nx;
+            dy = fovy_raw/ny;
+            info.PixelSpacing=[dy;dx];
+
+            % Find correct patient orientation
+            fovx_img = size(CINEs,1);
+            fovy_img = size(CINEs,2);
+
+            % Flip slicepos depending on whether the diff between the first/last slice position is positive or negative
+            if SlicePos_MAX-SlicePos_MIN >=0
+                SlicePos = unique(SlicePos.','rows').';
+            elseif SlicePos_MAX-SlicePos_MIN<0
+                SlicePos=flip(unique(SlicePos.','rows').',2);
+            end
+
+            % Find correct central coordinates based on SlicePos
+            central_coordinates = SlicePos(1:3,SliceCounter);
+            z_pos_add = Header{1,size(Header,2)}.hdr.MeasYaps.lScanRegionPosTra;
+
+            % Apply transformation to central coordinates in order to get correct imagepositionpatient value
+            info.ImagePositionPatient=central_coordinates-(fovx_img/2)*newR(:,1) - (fovy_img/2)*newR(:,2)+[0;0;z_pos_add];
+            info.Private_0019_1015=central_coordinates-(fovx_img/2)*newR(:,1) - (fovy_img/2)*newR(:,2);
+
             fprintf( '  Setting dicom series number and date/time info.\n' )
             info.SeriesNumber=SeriesCounter;
             info.StudyDate=Date;
