@@ -32,11 +32,25 @@ Path = scanFilePath;
 
 %% Run Reconstruction
 
-CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,scanFileName,outputDirPath,taskParam.task.patientname);
+%  Lookup Dicom StudyUID and PatientName 
+studyLOID = Header{end}.hdr.Meas.StudyLOID;  % raw data study ID 
+[ studyUID, patientName ] = lookup_study_info( studyLOID, taskParam.task.patientname );  % get dicom UID and patient name that are consistent across study
+fprintf('PatientName       %s\n', patientName );
+fprintf('StudyInstanceUID  %s\n', studyUID );
+
+% Number of Cardiac Phases
+if ( isfield( taskParam.task, 'paramvalue' ) )
+    if ~isempty( taskParam.task.paramvalue )
+        if ( taskParam.task.paramvalue >= 5 && taskParam.task.paramvalue <= 35 )
+            numCardiacPhase = taskParam.task.paramvalue;
+        else
+            numCardiacPhase = 15;
+        end
+    end
+end
+
+CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,scanFileName,numCardiacPhase,outputDirPath,patientName,studyUID);
 
 fprintf('Reconstructions finished. \n');
 
 end  % CINE_Tool_Main(...)
-
-
-   

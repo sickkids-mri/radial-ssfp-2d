@@ -1,4 +1,4 @@
-function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,patientName)
+function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,rFrames,outputDirPath,patientName,studyUid)
 
     % Chris Roy 2018
         fprintf('Output path: %s \n', outputDirPath);
@@ -201,7 +201,6 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         %
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
-        rFrames=20;
         CINEs=zeros(0.5*size(KSpace,1),0.5*size(KSpace,1),rFrames,size(KSpace,4),'single'); %Initialize variable
         fprintf('Step 4 of 6 - Calculating Heart Rate - Finished \n');
         fprintf('Step 5 of 6 - Reconstructing CINE Images \n');
@@ -263,7 +262,7 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         fprintf('Step 5 of 6 - Reconstructing CINE Images - Finished \n');
 
     
-        clearvars -except CINEs Header FileName outputDirPath
+        clearvars -except CINEs Header FileName outputDirPath patientName studyUid rFrames
           
         %% 6 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %
@@ -274,6 +273,11 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         %     StartTime=; %Keep track of internal clock time to aproximate time remaining for current step
         
         fprintf('Step 6 of 6 - Saving DICOMs - Image \n');
+        if exist('patientName','var')
+           fprintf('patientName = %s\n',patientName)
+        else
+           fprintf('patientName variable does not exist/n')
+        end
         fprintf( '  Assigning patientName if missing.\n' )
         if isfield( Header{end}.hdr.Dicom, 'tPatientName' ) && ~exist('patientName','var')
             patientName = Header{end}.hdr.Dicom.tPatientName;
@@ -288,7 +292,10 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         SeriesCounter=0;
         
         fprintf( '  Setting dicom study and series instance.\n' )
-        info.StudyInstanceUID=dicomuid;
+        if ~exist('studyID','var')
+           studyID=dicomuid;
+        end
+        info.StudyInstanceUID=studyUid;
         info.SeriesInstanceUID=dicomuid;
         info.Manufacturer='SIEMENS';
         
@@ -321,7 +328,8 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         info.ImageComments='N/A';
         info.PatientComments='N/A';
         info.ProtocolName           = Header{end}.hdr.Dicom.tProtocolName;   
-        info.SeriesDescription      = Header{end}.hdr.Dicom.tProtocolName;
+        measUidStr                  = sprintf( 'MID%05i',Header{end}.hdr.Config.MeasUID );
+        info.SeriesDescription      = sprintf( '%s %s SSFP %i frames', measUidStr, strrep(strrep(Header{end}.hdr.Dicom.tProtocolName,'STACK','SSFP Cine MoCo'),'_RDS',''), rFrames );
         info.SequenceName           = Header{end}.hdr.Config.SequenceString;
         info.SequenceString         = Header{end}.hdr.Config.SequenceString;        
         info.SequenceVariant        = Header{end}.hdr.Dicom.tSequenceVariant;       
@@ -402,7 +410,6 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
             info.Private_0019_1015=central_coordinates-(fovx_img/2)*newR(:,1) - (fovy_img/2)*newR(:,2);
 
             fprintf( '  Setting dicom series number and date/time info.\n' )
-            info.SeriesNumber=SeriesCounter;
             info.StudyDate=Date;
             info.SeriesDate=Date;
             info.AcquisitionDate=Date;
@@ -424,4 +431,3 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,outputDirPath,
         fprintf('Step 6 of 6 - Saving DICOMs - Image - Finished \n');
         
 end  % CINE_Tool_Main_Helper(...)
-    
