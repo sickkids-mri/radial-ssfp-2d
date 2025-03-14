@@ -328,7 +328,8 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,rFrames,output
         info.PatientComments='N/A';
         info.ProtocolName           = Header{end}.hdr.Dicom.tProtocolName;   
         measUidStr                  = sprintf( 'MID%05i',Header{end}.hdr.Config.MeasUID );
-        info.SeriesDescription      = sprintf( '%s %s SSFP %i frames', measUidStr, strrep(strrep(Header{end}.hdr.Dicom.tProtocolName,'STACK','SSFP Cine MoCo'),'_RDS',''), rFrames );
+        info.SeriesDescription      = sprintf( '%s %s %s %i frames', measUidStr, strrep(strrep(Header{end}.hdr.Dicom.tProtocolName,'STACK','SSFP'),'_RDS',''), 'Cine MoCo', rFrames );
+        info.SeriesDescription      = strrep( info.SeriesDescription, '_', ' ' );
         info.SequenceName           = Header{end}.hdr.Config.SequenceString;
         info.SequenceString         = Header{end}.hdr.Config.SequenceString;        
         info.SequenceVariant        = Header{end}.hdr.Dicom.tSequenceVariant;       
