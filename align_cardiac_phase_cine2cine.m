@@ -14,7 +14,6 @@ get_mask_values_3d  = @( im, msk ) reshape( get_mask_values_vec( im, msk ), sum(
 
 make_vec            = @( x ) reshape( x , [], 1 );
 %% Create Common Mask
-fprintf('here1 \n'); 
 mask = maskTgt & maskSrc;
 
 %% Get SI in Mask
@@ -22,7 +21,6 @@ mask = maskTgt & maskSrc;
 siTgt = get_mask_values_3d( imCineTgt, mask );
 siSrc = get_mask_values_3d( imCineSrc, mask );
 nCardPhase = size(siTgt,3);
-fprintf('here2 \n');
 %% Find Delay
 
 delay = 1:nCardPhase;
@@ -50,7 +48,7 @@ iDelay  = iDelay3d;
 cc      = cc3d;
 srcDelay = delay(iDelay);
 imCineSrcAlign = circshift( imCineSrc, srcDelay, 3);
-fprintf('here3 \n');
+
 %% Visualise
 
 if ( showFig )

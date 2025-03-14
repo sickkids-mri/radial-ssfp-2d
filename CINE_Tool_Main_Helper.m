@@ -245,14 +245,13 @@ function CINE_Tool_Main_Helper(KSpace,Times,Noise,Header,FileName,rFrames,output
             
             CINEs(:,:,:,iSlice) = CINE_Tool_MOG_Recon(param);
             
-            fprintf('  Cardiac Phase Alignment - Starting \n');
             srcDelay = zeros(1,size(CINEs,4));
             if (iSlice ~= 1)
+                fprintf('  Cardiac Phase Alignment\n');
                 maskTgt = zeros(size(CINEs(:,:,1))); 
                 maskTgt(ROIy,ROIx,:)=1;
                 [ CINEs(:,:,:,iSlice), srcDelay(iSlice) ] = align_cardiac_phase_cine2cine( CINEs(:,:,:,iSlice-1), maskTgt, CINEs(:,:,:,iSlice), maskTgt);
             end
-            fprintf('  Cardiac Phase Alignment - Done \n');
 
             display(['Final CINE Size: ',mat2str(size(CINEs))])
             
