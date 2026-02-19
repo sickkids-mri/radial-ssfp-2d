@@ -1,4 +1,4 @@
-% Script to perform golden-angle radial 2D SSFP cine MRI reconstruction with motion-correction and cardiac metric optimized gating
+% Example golden-angle radial 2D SSFP cine MRI reconstruction with motion-correction and cardiac metric optimized gating
 %
 %   Requires variable twixFilePath at minimum.
 %
@@ -7,24 +7,25 @@
 %       outputDirPath   = '/absolute/path/to/output/meas_id/';
 %       script_radial_cine_2d_recon_cine_moco
 
+% NOTE: script is an example, however full functionality has not been tested
 
 %% Initialize
 
 % clear all variables except for select user-specified files, directories
 % and parameters
 clearvars -except debug saveLog saveResults saveFigures ...
-    twixFilePath outputDirPath figDirPath ...
+    twixFilePath outputDirPath figDirPath dependenciesDirPath...
     nCineFrame
 
 % close all open figures
 close all
 
 % add dependencies to Matlab path
-scriptDirPath = fileparts( which( mfilename ) );
-origPath  = path;
-resetPath = onCleanup( @() path( origPath ) );
-addpath( genpath( fullfile( scriptDirPath, 'dependencies' ) ) );
-
+%   e.g., 
+%       dependenciesDirPath = '/path/to/dependencies';
+%       origPath  = path;
+%       resetPath = onCleanup( @() path( origPath ) );
+%       addpath( genpath( dependenciesDirPath ) );
 
 %% Setup
 
@@ -84,7 +85,7 @@ end
 %% Load Raw Data
 
 fprintf( 'Loading raw data...\n' );
-[KSpace, Times, Noise, Header] = CINE_Tool_Read_Raw_Data( twixFilePath );
+[KSpace, Times, Noise, Header] = load_raw_data( twixFilePath );
 
 % Extract basic parameters
 nSample = size(KSpace, 1);
