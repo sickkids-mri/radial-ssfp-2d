@@ -73,12 +73,6 @@ else
 end
 w = CINE_Tool_Weighting(size(KSpace,1));
 
-% Reduce number of slices for debugging purposes
-fprintf('NOTE: Reconstructing one slice only, for testing purposes.\n')
-indSlice=round(size(KSpace,4)/2);
-KSpace=KSpace(:,:,:,indSlice);
-Times=Times(:,indSlice);
-
 % Remove noisy channels
 RESULTS.PREP.initialKSpaceSize = size(KSpace);
 fprintf('Initial KSpace Size: %s\n', mat2str(size(KSpace)))
