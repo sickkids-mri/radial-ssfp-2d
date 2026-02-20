@@ -5,7 +5,7 @@
 %   Example
 %       twixFilePath    = '/absolute/path/to/raw/meas_id.dat';
 %       outputDirPath   = '/absolute/path/to/output/meas_id/';
-%       script_radial_cine_2d_recon_cine_moco
+%       script_radial_ssfp_2d_recon_cine_moco
 
 % NOTE: script is an example, however full functionality has not been tested
 

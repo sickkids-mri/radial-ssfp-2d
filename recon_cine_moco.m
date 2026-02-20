@@ -59,8 +59,10 @@ verbose = p.Results.verbose;
 
 %% Setup and Preprocessing
 
+fprintf('Step 1 - Preprocessing...\n')
+
 if ~isempty(outputDirPath)
-    fprintf('Output path: %s \n', outputDirPath);
+    fprintf('\toutput path: %s \n', outputDirPath);
 end
 outputFileNamePrefix = strrep( FileName, 'meas_', '' );
 outputFileNamePrefix = strrep( outputFileNamePrefix, '.dat', '' );
@@ -75,7 +77,7 @@ w = CINE_Tool_Weighting(size(KSpace,1));
 
 % Remove noisy channels
 RESULTS.PREP.initialKSpaceSize = size(KSpace);
-fprintf('Initial KSpace Size: %s\n', mat2str(size(KSpace)))
+fprintf('\tinitial k-space size: %s\n', mat2str(size(KSpace)))
 
 if ~isempty(Noise)
     Noise = squeeze(mean(mean(mean(abs(Noise),1),3),6));
@@ -88,7 +90,7 @@ if ~isempty(Noise)
     KSpace = KSpace(:,:,Coils(~isnan(Coils)),:);
 end
 clear Noise Coils
-fprintf('KSpace Size (After Removing Noisy Channels): %s\n', mat2str(size(KSpace)))
+fprintf('\tk-space size (after removing noisy channels): %s\n', mat2str(size(KSpace)))
 
 % Perform coil compression
 try
@@ -104,7 +106,7 @@ catch
     KSpace = KSpace(:,:,1:8,:);
     clear V
 end
-fprintf('KSpace Size (After Coil Compression): %s\n', mat2str(size(KSpace)))
+fprintf('\tk-space Ssze (after coil compression): %s\n', mat2str(size(KSpace)))
 
 % Estimate coil sensitivities
 FT = MCNUFFT(k,repmat(w,[1,size(k,2)]).^2,ones(0.5*size(KSpace,1),0.5*size(KSpace,1)));
@@ -131,7 +133,7 @@ clear STACKS
 
 %% Real-Time Image Reconstruction (low temporal resolution, for motion correction)
 
-fprintf('Step 2 of 6 - Reconstructing Real-Time Images \n');
+fprintf('Step 2 - Reconstructing Real-Time Images...\n');
 
 [~,kRT] = CINE_Tool_RT_Sort(ones(size(k)), k, 15, 10);  % pre-compute re-sorted trajectory
 
@@ -140,10 +142,8 @@ RT = zeros(size(csm,1),size(csm,1),size(kRT,3),size(csm,4),'single');
 param.lambda = 0.5;  % temporal total variation regularizer
 param.nite = 4;      % number of iterations
 
-fprintf('Step 1 of 6 - Loading Raw Data - Finished \n');
-
 for iSlice = 1:size(csm,4)
-    fprintf('    slice %i of %i\n', iSlice, size(csm,4))
+    fprintf('\tslice %i of %i\n', iSlice, size(csm,4))
     param.E = swap_b1(param.E,csm(:,:,:,iSlice));
     param.y = CINE_Tool_RT_Sort(KSpace(:,:,:,iSlice), kRT, 15, 10);
     RT(:,:,:,iSlice) = CINE_Tool_RT_Recon(param);
@@ -153,7 +153,7 @@ clear param kRT
 if ~isempty(outputDirPath)
     matFileName = strcat('reconstructed_RT_images_', outputFileNamePrefix, '.mat');
     matFilePath = fullfile(outputDirPath, matFileName);
-    fprintf('   %s\n', matFilePath);
+    fprintf('\t%s\n', matFilePath);
     save(matFilePath, 'RT', '-v7.3');
 end
 
@@ -164,7 +164,7 @@ RESULTS.PREP.nSlices = size(KSpace,4);
 
 %% Motion Estimation
 
-fprintf('Step 3 of 6 - Calculating Translational Motion \n');
+fprintf('Step 3 - Calculating Translational Motion...\n');
 
 t = imresize(Times(:,1)-min(Times(:,1)), size(RT,3)/length(Times(:,1)));
 
@@ -188,7 +188,7 @@ myTransforms = zeros(AVGFrames, 2, size(RT,4));
 for iSlice = 1:size(RT,4)
     Targets = repmat(RTAVG(:,:,MI(:,iSlice)==max(MI(:,iSlice)),iSlice), [1,1,AVGFrames]);
     myTransforms(:,:,iSlice) = CINE_Tool_MOCO(abs(RTAVG(:,:,:,iSlice)), abs(Targets), MOCOy, MOCOx);
-    fprintf('    slice %i\n', iSlice)
+    fprintf('\tslice %i\n', iSlice)
 end
 
 RT = CINE_Tool_Correct_RT(RT, -myTransforms);
@@ -197,21 +197,20 @@ magTempMeanRT = abs(mean(RT, 3));
 if ~isempty(outputDirPath)
     matFileName = strcat('calculated_translational_motion_', outputFileNamePrefix, '.mat');
     matFilePath = fullfile(outputDirPath, matFileName);
-    fprintf('   %s\n', matFilePath);
+    fprintf('\t%s\n', matFilePath);
     save(matFilePath, 'magTempMeanRT', 'MI', 'ROIx', 'ROIy', 'MIx', 'MIy', 'myTransforms', '-v7.3');
     matFileName = strcat('motion-corrected_RT_images_', outputFileNamePrefix, '.mat');
     matFilePath = fullfile(outputDirPath, matFileName);
-    fprintf('   %s\n', matFilePath);
+    fprintf('\t%s\n', matFilePath);
     save(matFilePath, 'RT', '-v7.3');
 end
 
 clear RTAVG MOCOy MOCOx AVGFrames
-fprintf('Step 3 of 6 - Calculating Translational Motion - Finished \n');
 
 
 %% Cardiac Synchronization (Metric-Optimized Gating)
 
-fprintf('Step 4 of 6 - Calculating Heart Rate \n');
+fprintf('Step 4 - Calculating Heart Rate...\n');
 
 [ROIy, ROIx, Initial_RRs] = CINE_Tool_AutoROI(RT, t);
 [MIy, MIx] = CINE_Tool_Enlarge_ROI(ROIy, ROIx, round(size(RT,1)/2), round(size(RT,1)/2));
@@ -228,17 +227,15 @@ for iSlice = 1:size(RT,4)
 end
 clear RT Initial_RRs
 
-fprintf('Step 4 of 6 - Calculating Heart Rate - Finished \n');
-
 
 %% Cine Image Reconstruction (high quality, motion-corrected, cardiac-gated)
 
-fprintf('Step 5 of 6 - Reconstructing CINE Images \n');
+fprintf('Step 5 - Reconstructing Cine Images...\n');
 
 CINEs = zeros(0.5*size(KSpace,1), 0.5*size(KSpace,1), rFrames, size(KSpace,4), 'single');
 
 for iSlice = 1:size(KSpace,4)
-    fprintf('    slice %i of %i\n', iSlice, size(KSpace,4))
+    fprintf('\tslice %i of %i\n', iSlice, size(KSpace,4))
     
     CP = Calculate_CardiacPhases(Times(:,iSlice)-min(Times(:,iSlice)), MOG(iSlice).RWaveTimes);
     MOCO = exp(-2*pi*1i*(-bsxfun(@times,imresize(-myTransforms(:,2,iSlice),[size(KSpace,2),1])',real(k))-...
@@ -249,7 +246,7 @@ for iSlice = 1:size(KSpace,4)
     [~,SpokeIndices] = sort(squeeze(W(1,:,:)), 1, 'descend');
     rSpokes = max(sum(squeeze(W(1,:,:)) > max(W(:))/1000));
     
-    fprintf('    spokes per frame: rSpokes(slice=%2i) = %5i (%6i acquired spokes, %2i frames)\n', iSlice, rSpokes, size(KSpace,2), rFrames)
+    fprintf('\tspokes per frame: rSpokes(slice=%2i) = %5i (%6i acquired spokes, %2i frames)\n', iSlice, rSpokes, size(KSpace,2), rFrames)
     
     kMOG = zeros(size(KSpace,1), rSpokes, rFrames, 'single');
     param.y = zeros(size(KSpace,1), rSpokes, size(KSpace,3), rFrames, 'single');
@@ -269,7 +266,6 @@ for iSlice = 1:size(KSpace,4)
     
     srcDelay = zeros(1,size(CINEs,4));
     if (iSlice ~= 1)
-        fprintf('    Cardiac Phase Alignment\n');
         maskTgt = zeros(size(CINEs(:,:,1)));
         maskTgt(ROIy,ROIx,:) = 1;
         [CINEs(:,:,:,iSlice), srcDelay(iSlice)] = align_cardiac_phase_cine2cine(CINEs(:,:,:,iSlice-1), maskTgt, CINEs(:,:,:,iSlice), maskTgt);
@@ -279,22 +275,9 @@ end
 if ~isempty(outputDirPath)
     matFileName = strcat('reconstructed_CINE_images_', outputFileNamePrefix, '.mat');
     matFilePath = fullfile(outputDirPath, matFileName);
-    fprintf('   %s\n', matFilePath);
+    fprintf('\t%s\n', matFilePath);
     save(matFilePath, 'CINEs', 'MI', 'MOG', 'srcDelay', 'ROIx', 'ROIy', '-v7.3');
 end
-
-fprintf('Step 5 of 6 - Reconstructing CINE Images - Finished \n');
-
-
-%% Save as DICOM Files
-
-if ~isempty(outputDirPath) && ~isempty(patientName) && ~isempty(studyUid)
-    fprintf('Step 6 of 6 - Saving DICOMs \n');
-    save_cine_to_dicom(CINEs, MOG, Header, FileName, rFrames, outputDirPath, patientName, 'verbose', verbose);
-else
-    fprintf('Step 6 of 6 - Saving DICOMs - Skipped (missing parameters) \n');
-end
-
 
 %% Prepare Output
 
@@ -318,6 +301,8 @@ RESULTS.MOCO.ROIx = ROIx;
 RESULTS.MOCO.ROIy = ROIy;
 RESULTS.CINE.imCine = CINEs;
 RESULTS.CINE.tCine = tCine;
+
+fprintf('Reconstruction complete\n')
 
 end  % recon_cine_moco(...)
 
