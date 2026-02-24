@@ -180,7 +180,7 @@ MI = CINE_Tool_Mutual_Information(Decimate_CINE(RTAVG(MIy,MIx,:,:), 4));
 
 [MOCOy, MOCOx] = CINE_Tool_Enlarge_ROI(ROIy, ROIx, round(size(RT,1)/4), round(size(RT,1)/4));
 
-if max(MOCOy) > size(RT,1); MOCOy = MOCOy+(max(MOCOy)-size(RT,1)); end
+if max(MOCOy) > size(RT,1); MOCOy = MOCOy-(max(MOCOy)-size(RT,1)); end
 if max(MOCOx) > size(RT,1); MOCOx = MOCOx-(max(MOCOx)-size(RT,1)); end
 
 myTransforms = zeros(AVGFrames, 2, size(RT,4));
