@@ -191,6 +191,7 @@ for iSlice = 1:size(RT,4)
     fprintf('\tslice %i\n', iSlice)
 end
 
+imRtBeforeMoCo = RT(:,:,1,1);
 RT = CINE_Tool_Correct_RT(RT, -myTransforms);
 
 magTempMeanRT = abs(mean(RT, 3));
@@ -296,6 +297,7 @@ RESULTS.DATA.nSpoke = size(KSpace,2);
 RESULTS.DATA.nSlice = size(KSpace,4);
 RESULTS.MOG.MOG = MOG;
 RESULTS.MOG.MI = MI;
+RESULTS.RT.imRt = imRtBeforeMoCo;
 RESULTS.MOCO.myTransforms = myTransforms;
 RESULTS.MOCO.ROIx = ROIx;
 RESULTS.MOCO.ROIy = ROIy;
@@ -305,4 +307,3 @@ RESULTS.CINE.tCine = tCine;
 fprintf('Reconstruction complete\n')
 
 end  % recon_cine_moco(...)
-

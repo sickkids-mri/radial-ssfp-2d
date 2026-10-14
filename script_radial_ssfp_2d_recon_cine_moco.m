@@ -14,7 +14,7 @@
 % clear all variables except for select user-specified files, directories
 % and parameters
 clearvars -except debug saveLog saveResults saveFigures ...
-    twixFilePath outputDirPath figDirPath dependenciesDirPath...
+    twixFilePath outputDirPath figDirPath dependenciesDirPath ...
     nCineFrame
 
 % close all open figures
@@ -109,6 +109,13 @@ fprintf( 'Running reconstruction...\n' );
 
 fprintf( 'Reconstruction completed successfully.\n' );
 
+if isfield(RESULTS, 'MOG') && isfield(RESULTS.MOG, 'MOG') && ...
+        ~isempty(RESULTS.MOG.MOG) && isfield(RESULTS.MOG.MOG, 'RWaveTimes')
+    rWaveTimes = RESULTS.MOG.MOG(1).RWaveTimes(:);
+else
+    rWaveTimes = [];
+end
+
 
 %% Save Results
 
@@ -148,7 +155,7 @@ if ( saveFigures )
         figure('Name', 'motion_correction', 'Position', [100, 100, 1000, 600]);
 
         subplot(2,2,1);
-        imagesc(abs(RESULTS.RT.imRt(:,:,1,1)));
+        imagesc(abs(RESULTS.RT.imRt));
         axis image off;
         colormap gray;
         title('Real-time image (before MoCo)');
@@ -171,18 +178,18 @@ if ( saveFigures )
     end
 
     % Figure 3: Cardiac synchronization
-    if isfield(RESULTS, 'MOG') && isfield(RESULTS.MOG, 'MOG')
+    if ~isempty(rWaveTimes)
         figure('Name', 'cardiac_sync', 'Position', [100, 100, 800, 600]);
 
         subplot(2,1,1);
-        plot(RESULTS.MOG.MOG.RWaveTimes, 'ro-', 'LineWidth', 2, 'MarkerSize', 8);
+        plot(rWaveTimes, 'ro-', 'LineWidth', 2, 'MarkerSize', 8);
         grid on;
         xlabel('R-wave number');
         ylabel('Time (ms)');
-        title('Detected R-wave Times');
+        title('Detected R-wave Times (slice 1)');
 
         subplot(2,1,2);
-        plot(diff(RESULTS.MOG.MOG.RWaveTimes), 'b-', 'LineWidth', 2);
+        plot(diff(rWaveTimes), 'b-', 'LineWidth', 2);
         grid on;
         xlabel('Beat number');
         ylabel('RR interval (ms)');
@@ -203,8 +210,8 @@ fprintf( 'Cine dimensions: %d x %d x %d x %d (x,y,frames,slices)\n', size(imCine
 fprintf( 'Number of cardiac phases: %d\n', nCineFrame );
 fprintf( 'Temporal resolution: %.1f ms per frame\n', mean(diff(tCine)) );
 
-if isfield(RESULTS, 'MOG') && isfield(RESULTS.MOG, 'MOG')
-    rrIntervals = diff(RESULTS.MOG.MOG.RWaveTimes);
+if ~isempty(rWaveTimes)
+    rrIntervals = diff(rWaveTimes);
     fprintf( 'Mean heart rate: %.1f bpm\n', 60000 / mean(rrIntervals) );
     fprintf( 'Heart rate variability: %.1f ms\n', std(rrIntervals) );
 end
@@ -231,7 +238,9 @@ end
 
 %% Clean-Up
 
-resetPath.task();
+if exist('resetPath', 'var')
+    clear resetPath
+end
 
 
 %% Helper Functions
