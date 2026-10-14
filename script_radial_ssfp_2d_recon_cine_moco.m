@@ -141,7 +141,7 @@ if ( saveFigures )
         colormap gray;
         title(sprintf('Frame %d (%.1f ms)', iFrame, tCine(iFrame)));
     end
-    suptitle('Reconstructed Cine Images');
+    subtitle('Reconstructed Cine Images');
 
     % Figure 2: Motion correction results
     if isfield(RESULTS, 'MOCO') && isfield(RESULTS.MOCO, 'myTransforms')
